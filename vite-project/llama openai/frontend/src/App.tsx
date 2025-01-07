@@ -1,20 +1,23 @@
 import { useState } from 'react';
-import { Box, Container, Typography, Paper } from '@mui/material';
+import { Box, Container, Typography, Paper, Drawer, Button, Divider, IconButton } from '@mui/material';
+import MenuIcon from '@mui/icons-material/Menu';  // For the hamburger menu
 import * as XLSX from 'xlsx';
 import FileUpload from './components/FileUpload';
 import GradeSummary from './components/GradeSummary';
 import { Settings, Subject } from './components/Settings';
 import './App.css';
 
+// Define the GradeData interface
 interface GradeData {
   summary: string;
-  data: Record<string, string | number>[];
+  data: Record<string, string | number>[]; // Array of student data with dynamic keys (student info)
 }
 
 function App() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [gradeData, setGradeData] = useState<GradeData | null>(null);
+  const [gradeData, setGradeData] = useState<GradeData | null>(null); // This uses the GradeData interface
   const [loading, setLoading] = useState(false);
+  const [isSidebarOpen, setSidebarOpen] = useState(false);
 
   const handleFileUpload = async (file: File) => {
     if (subjects.length === 0) {
@@ -85,29 +88,61 @@ function App() {
     return 'F';
   };
 
+  const toggleSidebar = () => setSidebarOpen(!isSidebarOpen);
+
   return (
-    <Container maxWidth="md">
-      <Box sx={{ my: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom align="center">
-          Grade Analysis System
-        </Typography>
+    <div style={{ display: 'flex' }}>
+      {/* Sidebar */}
+      <Drawer
+        anchor="left"
+        open={isSidebarOpen}
+        onClose={toggleSidebar}
+        variant="temporary"
+      >
+        <Box sx={{ width: 250, padding: 2 }}>
+          <Button fullWidth onClick={toggleSidebar}>Close</Button>
+          <Divider sx={{ my: 2 }} />
+          <Button fullWidth onClick={() => console.log('Go to Grade Report Summary')}>Grade Report Summary</Button>
+          <Button fullWidth onClick={() => console.log('Go to Another Menu')}>Another Menu Item</Button>
+        </Box>
+      </Drawer>
 
-        <Settings subjects={subjects} onSubjectsChange={setSubjects} />
-        
-        <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
-          <FileUpload onFileUpload={handleFileUpload} loading={loading} />
-        </Paper>
+      {/* Main content */}
+      <Box sx={{ flexGrow: 1, padding: 3 }}>
+        {/* Move the menu button to the left */}
+        <IconButton 
+          edge="start" 
+          color="inherit" 
+          onClick={toggleSidebar} 
+          sx={{ position: 'absolute', top: 20, left: 20 }}
+        >
+          <MenuIcon />
+        </IconButton>
 
-        {gradeData && (
-          <Paper elevation={3} sx={{ p: 3 }}>
-            <GradeSummary 
-              data={gradeData}
-              subjects={subjects}
-            />
-          </Paper>
-        )}
+        <Container maxWidth="md">
+          <Box sx={{ my: 4 }}>
+            <Typography variant="h4" component="h1" gutterBottom align="center">
+              Grade Analysis System
+            </Typography>
+
+            <Settings subjects={subjects} onSubjectsChange={setSubjects} />
+            
+            <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
+              <FileUpload onFileUpload={handleFileUpload} loading={loading} />
+            </Paper>
+
+            {gradeData && (
+              <Paper elevation={3} sx={{ p: 3 }}>
+                <GradeSummary 
+                  data={gradeData}
+                  subjects={subjects}
+                />
+              </Paper>
+            )}
+          </Box>
+        </Container>
       </Box>
-    </Container>
+    </div>
   );
 }
 
