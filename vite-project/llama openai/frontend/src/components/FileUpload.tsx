@@ -7,31 +7,30 @@ interface FileUploadProps {
   loading: boolean;
 }
 
-const FileUpload = ({ onFileUpload, loading }: FileUploadProps) => {
-  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      onFileUpload(file);
-    }
-  };
-
+export default function FileUpload({ onFileUpload, loading }: FileUploadProps) {
   return (
     <Box sx={{ textAlign: 'center' }}>
       <input
+        type="file"
         accept=".xlsx,.xls"
+        onChange={(e) => e.target.files && onFileUpload(e.target.files[0])}
         style={{ display: 'none' }}
         id="file-upload"
-        type="file"
-        onChange={handleFileChange}
       />
       <label htmlFor="file-upload">
         <Button
           component="span"
           variant="contained"
-          startIcon={loading ? <CircularProgress size={20} /> : <CloudUploadIcon />}
+          sx={{
+            backgroundColor: '#40414F',
+            color: '#ECECF1',
+            '&:hover': {
+              backgroundColor: 'rgba(255,255,255,0.1)'
+            }
+          }}
           disabled={loading}
         >
-          Upload Excel File
+          {loading ? 'Uploading...' : 'Upload Excel File'}
         </Button>
       </label>
       <Typography variant="body2" sx={{ mt: 2 }}>
@@ -39,6 +38,4 @@ const FileUpload = ({ onFileUpload, loading }: FileUploadProps) => {
       </Typography>
     </Box>
   );
-};
-
-export default FileUpload; 
+} 

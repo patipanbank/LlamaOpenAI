@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'http://localhost:3000/api';
 
 interface Grade {
   academicYear: string;
@@ -33,5 +33,15 @@ export const fetchGrades = async (params: {
   } catch (error) {
     console.error('API Error:', error);
     throw new Error('Error fetching grades');
+  }
+};
+
+export const askLlama = async (question: string) => {
+  try {
+    const response = await axios.post(`${API_URL}/chat`, { question });
+    return response.data;
+  } catch (error) {
+    console.error('Chat API Error:', error);
+    throw new Error('Error getting response from AI');
   }
 };

@@ -5,7 +5,7 @@ import * as XLSX from 'xlsx';
 import FileUpload from './components/FileUpload';
 import GradeSummary from './components/GradeSummary';
 import { Settings, Subject } from './components/Settings';
-import Chatbot from './components/Chatbot';
+import Chatbot from './components/ChatComponent.tsx';
 import './App.css';
 import { saveGrades } from './services/api.tsx';
 
@@ -249,7 +249,6 @@ function App() {
 
   return (
     <div style={{ display: 'flex' }}>
-      {/* Sidebar */}
       <Drawer
         anchor="left"
         open={isSidebarOpen}
@@ -280,18 +279,22 @@ function App() {
         </Box>
       </Drawer>
 
-      {/* Main content */}
-      <Box sx={{ flexGrow: 1, padding: 3 }}>
+      <Box sx={{ flexGrow: 1, padding: 3, position: 'relative' }}>
         <IconButton 
           edge="start" 
           color="inherit" 
           onClick={toggleSidebar} 
-          sx={{ position: 'absolute', top: 20, left: 20 }}
+          sx={{ 
+            position: 'fixed',
+            top: 20, 
+            left: 20,
+            zIndex: 1000
+          }}
         >
           <MenuIcon />
         </IconButton>
 
-        <Container maxWidth="md">
+        <Container maxWidth="md" sx={{ marginTop: '40px' }}>
           {currentView === 'grades' ? (
             <Box sx={{ my: 4 }}>
               <Typography variant="h4" component="h1" gutterBottom align="center">
