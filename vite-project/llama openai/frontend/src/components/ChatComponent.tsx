@@ -15,24 +15,7 @@ export default function ChatComponent() {
   useEffect(() => {
     const getWelcomeMessage = async () => {
       try {
-        const welcomeMessage = `Welcome to Grade Assistant! 👋
-
-I can help you search for student grades using these 4 formats:
-
-1. Subject + Student ID + Term/Year
-   Example: "Math 6412345678 1/2024"
-
-2. Student ID + Term/Year
-   Example: "6412345678 1/2024"
-
-3. Subject + Student Name + Term/Year
-   Example: "Math John 1/2024"
-
-4. Student Name + Term/Year
-   Example: "John 1/2024"
-
-Please type your search query using one of these formats.
-Note: Term/Year should always be in the format "semester/year" (e.g., 1/2024)`;
+        const welcomeMessage = `Welcome to Grade Assistant! 👋`;
 
         setMessages([{ type: 'assistant', content: welcomeMessage }]);
       } catch (error) {

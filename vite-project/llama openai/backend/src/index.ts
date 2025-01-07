@@ -1,36 +1,26 @@
 import express from 'express';
-import mongoose from 'mongoose';
 import cors from 'cors';
-import router from './routes/gradeRoutes';
+import mongoose from 'mongoose';
+import dotenv from 'dotenv';
+import gradeRoutes from './routes/gradeRoutes';
+
+dotenv.config();
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 5000;
 
-// แก้ไข URL ให้ตรงกับ MongoDB Compass
-const MONGODB_URL = 'mongodb://localhost:27017/gradeDB';
-
-// เพิ่ม debug logs
-mongoose.connection.on('connected', () => {
-    console.log('MongoDB connected successfully');
-});
-
-mongoose.connection.on('error', (err) => {
-    console.error('MongoDB connection error:', err);
-});
-
-// เชื่อมต่อ MongoDB
-mongoose.connect(MONGODB_URL)
-    .then(() => {
-        console.log('Connected to MongoDB at:', MONGODB_URL);
-    })
-    .catch(err => {
-        console.error('Failed to connect to MongoDB:', err);
-    });
-
+// Middleware
 app.use(cors());
 app.use(express.json());
-app.use('/api', router);
+
+// MongoDB connection
+mongoose.connect('mongodb://localhost:27017/gradeDB')
+  .then(() => console.log('Connected to MongoDB'))
+  .catch((err) => console.error('MongoDB connection error:', err));
+
+// Routes
+app.use('/api', gradeRoutes);
 
 app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+  console.log(`Server is running on port ${PORT}`);
 }); 

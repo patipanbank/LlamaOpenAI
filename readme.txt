@@ -21,3 +21,12 @@ set OLLAMA_CUDA_LAUNCHES=64 && ollama run llama2
 set OLLAMA_CUDA_LAUNCHES=16
 set OLLAMA_GPU_LAYERS=16
 ollama run llama2:7b-chat
+
+#กำจัด
+taskkill /F /IM ollama.exe
+
+#เช็ค
+tasklist | findstr ollama
+
+#เปิด
+ollama serve

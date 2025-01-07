@@ -1,16 +1,13 @@
 import mongoose from 'mongoose';
 
 const gradeSchema = new mongoose.Schema({
-  academicYear: String,
-  semester: String,
-  subject: String,
-  studentId: String,
-  name: String,
-  score: Number,
-  grade: String,
-  createdAt: Date,
-  updatedAt: Date,
-  __v: Number
+  studentId: { type: String, required: true },
+  name: { type: String, required: true },
+  subject: { type: String, required: true },
+  score: { type: Number, required: true },
+  grade: { type: String, required: true },
+  semester: { type: String, required: true },
+  academicYear: { type: String, required: true }
 });
 
-export const Grade = mongoose.model('Grade', gradeSchema); 
+export const Grade = mongoose.model('grades', gradeSchema); 
