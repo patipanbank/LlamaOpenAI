@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Box, Container, Typography, Paper, Drawer, Button, Divider, IconButton } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';  // For the hamburger menu
 import * as XLSX from 'xlsx';
 import FileUpload from './components/FileUpload';
 import GradeSummary from './components/GradeSummary';
 import { Settings, Subject } from './components/Settings';
+import Chatbot from './components/Chatbot';
 import './App.css';
+import { saveGrades } from './services/api.tsx';
 
 // Define the GradeData interface
 interface GradeData {
@@ -13,26 +15,131 @@ interface GradeData {
   data: Record<string, string | number>[]; // Array of student data with dynamic keys (student info)
 }
 
+// Define the Grade interface
+interface Grade {
+  academicYear: string;
+  semester: string;
+  subject: string;
+  studentId: string;
+  name: string;
+  score: number;
+}
+
 function App() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [gradeData, setGradeData] = useState<GradeData | null>(null); // This uses the GradeData interface
   const [loading, setLoading] = useState(false);
   const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const [currentView, setCurrentView] = useState<'grades' | 'chat'>('grades');
+  const [gradesToSave, setGradesToSave] = useState<Grade[]>([]);
+
+  // เพิ่มฟังก์ชันคำนวณเกรด
+  const calculateGrade = (score: number, thresholds: any): string => {
+    if (score >= thresholds.A) return 'A';
+    if (score >= thresholds['B+']) return 'B+';
+    if (score >= thresholds.B) return 'B';
+    if (score >= thresholds['C+']) return 'C+';
+    if (score >= thresholds.C) return 'C';
+    if (score >= thresholds['D+']) return 'D+';
+    if (score >= thresholds.D) return 'D';
+    return 'F';
+  };
+
+  // แก้ไข useEffect
+  useEffect(() => {
+    if (gradeData && subjects.length > 0) {
+      const currentSubject = subjects[0];
+      
+      // อัพเดทข้อมูลด้วย subject ใหม่และคำนวณเกรด
+      const updatedGrades = gradeData.data.map(student => {
+        // แก้ไขการดึงค่าคะแนน - ดึงเฉพาะตัวเลขคะแนน
+        let score: number;
+        const scoreStr = student['Score'].toString();
+        if (scoreStr.includes('(')) {
+          // ถ้ามีวงเล็บ (มีเกรด) ให้ดึงเฉพาะตัวเลขก่อนวงเล็บ
+          score = Number(scoreStr.split(' ')[0]);
+        } else {
+          // ถ้าไม่มีวงเล็บ ให้แปลงเป็นตัวเลขโดยตรง
+          score = Number(scoreStr);
+        }
+
+        // คำนวณเกรดใหม่
+        const newGrade = calculateGrade(score, currentSubject.thresholds);
+        
+        return {
+          'Student ID': student['Student ID'],
+          'Name': student['Name'],
+          'Score': `${score} (${newGrade})`
+        };
+      });
+
+      // อัพเดทการแสดงผล
+      setGradeData({
+        summary: `${currentSubject.name} Grades:\n\n`,
+        data: updatedGrades
+      });
+
+      // อัพเดทข้อมูลสำหรับบันทึก
+      const savableGrades = updatedGrades.map(student => {
+        const scoreStr = student['Score'].toString();
+        const score = Number(scoreStr.split(' ')[0]);
+        const grade = scoreStr.match(/\((.*?)\)/)?.[1] || '';
+
+        return {
+          academicYear: currentSubject.academicYear?.year || '',
+          semester: currentSubject.academicYear?.semester || '',
+          subject: currentSubject.name || '',
+          studentId: student['Student ID']?.toString() || '',
+          name: student['Name']?.toString() || '',
+          score: score,
+          grade: grade
+        };
+      });
+      
+      setGradesToSave(savableGrades);
+    }
+  }, [subjects, gradeData]); // เพิ่ม gradeData ใน dependencies
 
   const handleFileUpload = async (file: File) => {
-    if (subjects.length === 0) {
-      alert('Please set up subjects before uploading a file');
-      return;
-    }
-
     setLoading(true);
     try {
       const data = await readExcelFile(file);
-      const summary = await analyzeGrades(data);
-      setGradeData({ summary, data });
+      
+      // Format data without requiring subjects
+      const formattedGrades = data.map(student => {
+        const rawScore = Number(student['Score'].toString().split(' ')[0]) || 0;
+        
+        return {
+          academicYear: subjects[0]?.academicYear?.year || '',
+          semester: subjects[0]?.academicYear?.semester || '',
+          subject: subjects[0]?.name || '',
+          studentId: student['Student ID']?.toString() || '',
+          name: student['Name']?.toString() || '',
+          score: rawScore,
+          grade: 'F' // เกรดเริ่มต้น
+        };
+      });
+
+      setGradesToSave(formattedGrades);
+
+      // Update display data
+      const displayData = formattedGrades.map(grade => ({
+        'Student ID': grade.studentId,
+        'Name': grade.name,
+        'Score': `${grade.score}`
+      }));
+
+      let summary = 'Grades:\n\n';
+      formattedGrades.forEach(student => {
+        summary += `\nStudent ID: ${student.studentId}\n`;
+        summary += `Name: ${student.name}\n`;
+        summary += `Score: ${student.score}\n`;
+      });
+
+      setGradeData({ summary, data: displayData });
     } catch (error) {
-      console.error('Error processing file:', error);
-      alert('Error processing file');
+      console.error('Error details:', error);
+      alert('Error processing file: ' + (error.message || 'Unknown error'));
     }
     setLoading(false);
   };
@@ -90,6 +197,56 @@ function App() {
 
   const toggleSidebar = () => setSidebarOpen(!isSidebarOpen);
 
+  // เพิ่มฟังก์ชันสำหรับการบันทึก
+  const handleSave = async () => {
+    try {
+      setLoading(true);
+      
+      if (!subjects[0]?.name) {
+        alert('Please set subject details before saving');
+        return;
+      }
+
+      const currentSubject = subjects[0];
+      
+      // สร้างข้อมูลที่จะบันทึก
+      const gradesToSave = gradeData.data.map(student => {
+        const scoreStr = student['Score'].toString();
+        let score: number;
+        let grade: string;
+
+        if (scoreStr.includes('(')) {
+          // กรณีมีเกรดในวงเล็บ
+          score = Number(scoreStr.split(' ')[0]);
+          grade = scoreStr.match(/\((.*?)\)/)?.[1] || 'F';
+        } else {
+          // กรณีมีแค่คะแนน
+          score = Number(scoreStr);
+          grade = calculateGrade(score, currentSubject.thresholds);
+        }
+
+        return {
+          academicYear: currentSubject.academicYear?.year || '',
+          semester: currentSubject.academicYear?.semester || '',
+          subject: currentSubject.name,
+          studentId: student['Student ID'],
+          name: student['Name'],
+          score: score,
+          grade: grade
+        };
+      });
+
+      // บันทึกลง database
+      await saveGrades(gradesToSave);
+      alert('Grades saved successfully!');
+    } catch (error) {
+      console.error('Error saving grades:', error);
+      alert('Error saving grades: ' + (error.message || 'Unknown error'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div style={{ display: 'flex' }}>
       {/* Sidebar */}
@@ -102,14 +259,29 @@ function App() {
         <Box sx={{ width: 250, padding: 2 }}>
           <Button fullWidth onClick={toggleSidebar}>Close</Button>
           <Divider sx={{ my: 2 }} />
-          <Button fullWidth onClick={() => console.log('Go to Grade Report Summary')}>Grade Report Summary</Button>
-          <Button fullWidth onClick={() => console.log('Go to Another Menu')}>Another Menu Item</Button>
+          <Button 
+            fullWidth 
+            onClick={() => {
+              setCurrentView('grades');
+              toggleSidebar();
+            }}
+          >
+            Grade Report Summary
+          </Button>
+          <Button 
+            fullWidth 
+            onClick={() => {
+              setCurrentView('chat');
+              toggleSidebar();
+            }}
+          >
+            AI Chatbot
+          </Button>
         </Box>
       </Drawer>
 
       {/* Main content */}
       <Box sx={{ flexGrow: 1, padding: 3 }}>
-        {/* Move the menu button to the left */}
         <IconButton 
           edge="start" 
           color="inherit" 
@@ -120,26 +292,45 @@ function App() {
         </IconButton>
 
         <Container maxWidth="md">
-          <Box sx={{ my: 4 }}>
-            <Typography variant="h4" component="h1" gutterBottom align="center">
-              Grade Analysis System
-            </Typography>
+          {currentView === 'grades' ? (
+            <Box sx={{ my: 4 }}>
+              <Typography variant="h4" component="h1" gutterBottom align="center">
+                Grade Analysis System
+              </Typography>
 
-            <Settings subjects={subjects} onSubjectsChange={setSubjects} />
-            
-            <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
-              <FileUpload onFileUpload={handleFileUpload} loading={loading} />
-            </Paper>
-
-            {gradeData && (
-              <Paper elevation={3} sx={{ p: 3 }}>
-                <GradeSummary 
-                  data={gradeData}
-                  subjects={subjects}
-                />
+              <Settings subjects={subjects} onSubjectsChange={setSubjects} />
+              
+              <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
+                <FileUpload onFileUpload={handleFileUpload} loading={loading} />
               </Paper>
-            )}
-          </Box>
+
+              {/* เพิ่มปุ่ม Save */}
+              {gradeData && (
+                <Button 
+                  variant="contained" 
+                  color="primary" 
+                  onClick={handleSave}
+                  sx={{ mt: 2, mb: 2 }}
+                  disabled={loading}
+                >
+                  {loading ? 'Saving...' : 'Save to Database'}
+                </Button>
+              )}
+
+              {gradeData && (
+                <Paper elevation={3} sx={{ p: 3 }}>
+                  <GradeSummary 
+                    data={gradeData}
+                    subjects={subjects}
+                  />
+                </Paper>
+              )}
+            </Box>
+          ) : (
+            <Box sx={{ my: 4 }}>
+              <Chatbot />
+            </Box>
+          )}
         </Container>
       </Box>
     </div>

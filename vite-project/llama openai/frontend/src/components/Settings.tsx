@@ -1,28 +1,28 @@
-import React from 'react';
+import { useState } from 'react';
 import {
-  Paper,
+  Box,
   TextField,
   Button,
-  Grid,
   Typography,
-  IconButton,
+  Grid,
+  Paper
 } from '@mui/material';
-import DeleteIcon from '@mui/icons-material/Delete';
 
-export interface GradeThreshold {
-  A: number;
-  'B+': number;
-  B: number;
-  'C+': number;
-  C: number;
-  'D+': number;
-  D: number;
-}
-
-export interface Subject {
-  id: string;
+interface Subject {
   name: string;
-  thresholds: GradeThreshold;
+  thresholds: {
+    A: number;
+    'B+': number;
+    B: number;
+    'C+': number;
+    C: number;
+    'D+': number;
+    D: number;
+  };
+  academicYear?: {
+    year: string;
+    semester: string;
+  };
 }
 
 interface SettingsProps {
@@ -30,106 +30,108 @@ interface SettingsProps {
   onSubjectsChange: (subjects: Subject[]) => void;
 }
 
-const defaultThresholds: GradeThreshold = {
-  A: 80,
-  'B+': 75,
-  B: 70,
-  'C+': 65,
-  C: 60,
-  'D+': 55,
-  D: 50,
-};
+export function Settings({ subjects, onSubjectsChange }: SettingsProps) {
+  const [subjectName, setSubjectName] = useState(subjects[0]?.name || '');
+  const [academicYear, setAcademicYear] = useState(subjects[0]?.academicYear?.year || '');
+  const [semester, setSemester] = useState(subjects[0]?.academicYear?.semester || '');
+  const [thresholds, setThresholds] = useState(subjects[0]?.thresholds || {
+    A: 80,
+    'B+': 75,
+    B: 70,
+    'C+': 65,
+    C: 60,
+    'D+': 55,
+    D: 50
+  });
 
-export const Settings: React.FC<SettingsProps> = ({ subjects, onSubjectsChange }) => {
-  const addSubject = () => {
-    onSubjectsChange([
-      ...subjects,
-      {
-        id: Date.now().toString(),
-        name: '',
-        thresholds: { ...defaultThresholds },
-      },
-    ]);
+  const handleThresholdChange = (grade: string, value: string) => {
+    setThresholds(prev => ({
+      ...prev,
+      [grade]: Number(value)
+    }));
   };
 
-  const removeSubject = (id: string) => {
-    onSubjectsChange(subjects.filter((subject) => subject.id !== id));
-  };
-
-  const updateSubject = (id: string, field: string, value: string | number) => {
-    onSubjectsChange(
-      subjects.map((subject) =>
-        subject.id === id
-          ? {
-              ...subject,
-              [field]: value,
-            }
-          : subject
-      )
-    );
-  };
-
-  const updateThreshold = (subjectId: string, grade: keyof GradeThreshold, value: number) => {
-    onSubjectsChange(
-      subjects.map((subject) =>
-        subject.id === subjectId
-          ? {
-              ...subject,
-              thresholds: {
-                ...subject.thresholds,
-                [grade]: value,
-              },
-            }
-          : subject
-      )
-    );
+  const handleSave = () => {
+    const updatedSubject: Subject = {
+      name: subjectName,
+      thresholds,
+      academicYear: {
+        year: academicYear,
+        semester
+      }
+    };
+    onSubjectsChange([updatedSubject]);
   };
 
   return (
     <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
       <Typography variant="h6" gutterBottom>
-        Subjects and Grade Thresholds
+        Grade Threshold Settings
       </Typography>
       
-      {subjects.map((subject) => (
-        <Grid container key={subject.id} spacing={2} sx={{ mb: 3 }}>
-          <Grid item xs={12} md={3}>
-            <TextField
-              fullWidth
-              label="Subject Name"
-              value={subject.name}
-              onChange={(e) => updateSubject(subject.id, 'name', e.target.value)}
-            />
-          </Grid>
-          <Grid item xs={12} md={8}>
-            <Grid container spacing={1}>
-              {Object.entries(subject.thresholds).map(([grade, threshold]) => (
-                <Grid item xs={6} sm={3} key={grade}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label={`Grade ${grade}`}
-                    type="number"
-                    value={threshold}
-                    onChange={(e) =>
-                      updateThreshold(subject.id, grade as keyof GradeThreshold, Number(e.target.value))
-                    }
-                  />
-                </Grid>
-              ))}
-            </Grid>
-          </Grid>
-          <Grid item xs={12} md={1}>
-            <IconButton onClick={() => removeSubject(subject.id)} color="error">
-              <DeleteIcon />
-            </IconButton>
-          </Grid>
+      <Grid container spacing={2}>
+        <Grid item xs={12} md={4}>
+          <TextField
+            fullWidth
+            label="Academic Year"
+            value={academicYear}
+            onChange={(e) => setAcademicYear(e.target.value)}
+            placeholder="Enter 4-digit year"
+            margin="normal"
+          />
         </Grid>
-      ))}
-      
-      <Button variant="contained" onClick={addSubject}>
-        Add Subject
-      </Button>
+        <Grid item xs={12} md={4}>
+          <TextField
+            fullWidth
+            label="Semester"
+            value={semester}
+            onChange={(e) => setSemester(e.target.value)}
+            placeholder="Enter semester (1-3)"
+            margin="normal"
+          />
+        </Grid>
+        <Grid item xs={12} md={4}>
+          <TextField
+            fullWidth
+            label="Subject Name"
+            value={subjectName}
+            onChange={(e) => setSubjectName(e.target.value)}
+            margin="normal"
+          />
+        </Grid>
+      </Grid>
+
+      <Box sx={{ mt: 3 }}>
+        <Typography variant="subtitle1" gutterBottom>
+          Grade Thresholds
+        </Typography>
+        <Grid container spacing={2}>
+          {Object.entries(thresholds).map(([grade, value]) => (
+            <Grid item xs={6} sm={3} key={grade}>
+              <TextField
+                fullWidth
+                label={`Grade ${grade}`}
+                value={value}
+                onChange={(e) => handleThresholdChange(grade, e.target.value)}
+                type="number"
+                margin="normal"
+              />
+            </Grid>
+          ))}
+        </Grid>
+      </Box>
+
+      <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={handleSave}
+        >
+          Update Subject
+        </Button>
+      </Box>
     </Paper>
   );
-}; 
+}
+
+export type { Subject }; 
