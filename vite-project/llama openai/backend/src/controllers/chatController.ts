@@ -9,9 +9,8 @@ export const chatWithAI = async (req: Request, res: Response) => {
     const { question } = req.body;
 
     // แยกข้อมูลจากคำถาม
-    const parts = question.trim().split(' ');
+    const parts = question.toLowerCase().trim().split(' ');
     
-    // ตรวจสอบรูปแบบข้อมูล
     const studentIdPattern = /^\d+$/;
     const termYearPattern = /(\d)\/(\d{4})/;
 
@@ -19,13 +18,12 @@ export const chatWithAI = async (req: Request, res: Response) => {
     const studentId = parts.find(part => studentIdPattern.test(part));
     const termYear = parts.find(part => termYearPattern.test(part));
 
-    // ถ้าไม่มี studentId ให้ส่งคำถามไปที่ Ollama โดยตรง
     if (!studentId) {
-      const aiResponse = await ollamaService.generateResponse(question, []);
+      const aiResponse = await ollamaService.generateResponse(question, null);
       return res.json({ answer: aiResponse });
     }
 
-    // สร้าง query filter สำหรับค้นหาเกรด
+    // สร้าง query filter
     let queryFilter: any = { studentId: studentId };
 
     if (termYear) {
@@ -34,15 +32,40 @@ export const chatWithAI = async (req: Request, res: Response) => {
       queryFilter.academicYear = year;
     }
 
-    // ค้นหาเกรดที่ตรงกับเงื่อนไข
+    // ค้นหาเกรดจาก database
     const grades = await Grade.find(queryFilter);
     
     if (grades.length === 0) {
-      return res.json({ answer: "No grades found for this student ID." });
+      return res.json({ 
+        answer: "📝 No grades found for the specified criteria." 
+      });
     }
 
-    const aiResponse = await ollamaService.generateResponse(question, grades);
-    return res.json({ answer: aiResponse });
+    // จัดกลุ่มเกรดตาม semester และ year
+    const groupedGrades = grades.reduce((acc, grade) => {
+      const key = `${grade.semester}/${grade.academicYear}`;
+      if (!acc[key]) {
+        acc[key] = [];
+      }
+      acc[key].push(grade);
+      return acc;
+    }, {} as Record<string, typeof grades>);
+
+    // สร้างข้อความตอบกลับ
+    let formattedResponse = `
+👤 ${grades[0].name} - Student ID #${grades[0].studentId}\n`;
+
+    // เพิ่มข้อมูลแต่ละ semester
+    for (const [termKey, termGrades] of Object.entries(groupedGrades)) {
+      formattedResponse += `\n📋 Grade Report (Semester ${termKey}):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━\n${
+        termGrades.map(grade => 
+          `📚 ${grade.subject.padEnd(20)}: ${grade.grade} (${grade.score})`
+        ).join('\n')
+      }\n`;
+    }
+
+    return res.json({ answer: formattedResponse });
 
   } catch (error) {
     console.error('Error:', error);

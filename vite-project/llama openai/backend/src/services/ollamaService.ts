@@ -12,18 +12,27 @@ export class OllamaService {
       let prompt;
       
       if (!gradeData || gradeData.length === 0) {
-        // ถ้าไม่มีข้อมูลเกรด ส่งคำถามไปตรงๆ
         prompt = `Question: ${question}\n\nPlease provide a helpful response:`;
       } else {
-        // ถ้ามีข้อมูลเกรด จัดรูปแบบข้อมูลเหมือนเดิม
-        const formattedResponse = `Student: ${gradeData[0].name} (ID: ${gradeData[0].studentId})\n\n` +
-          gradeData.map((grade: any) => 
-            `Subject: ${grade.subject}\n` +
-            `Grade: ${grade.grade} (${grade.score})\n` +
-            `Term: ${grade.semester}/${grade.academicYear}`
-          ).join('\n\n');
+        const formattedResponse = `
+📋 Student Information
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+👤 Name: ${gradeData[0].name}
+🆔 Student ID: ${gradeData[0].studentId}
 
-        prompt = `Based on this student's grade information:\n\n${formattedResponse}\n\nQuestion: ${question}\n\nPlease provide a helpful response:`;
+📊 Grade Report (${gradeData[0].semester}/${gradeData[0].academicYear})
+━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+          gradeData.map((grade: any) => 
+            `📚 ${grade.subject.padEnd(20)} : ${grade.grade} (${grade.score})`
+          ).join('\n');
+
+        prompt = `You are a grade reporting assistant. Based on this information:
+
+${formattedResponse}
+
+Question: ${question}
+
+Please provide a clear and concise response focusing on the grade information. Avoid repeating the same information multiple times.`;
       }
 
       const response = await axios.post(this.baseUrl, {
@@ -31,9 +40,9 @@ export class OllamaService {
         prompt: prompt,
         stream: false,
         options: {
-          temperature: 0.7,
+          temperature: 0.5,
           top_p: 0.9,
-          repeat_penalty: 1.5,
+          repeat_penalty: 1.8,
           stop: ["\n\n\n"]
         }
       });

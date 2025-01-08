@@ -1,22 +1,32 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { askLlama } from '../services/api';
-import { Box, TextField, Typography, IconButton } from '@mui/material';
+import { Box, TextField, Typography, IconButton, CircularProgress } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 
 interface ChatMessage {
   type: 'user' | 'assistant';
   content: string;
+  loading?: boolean;
 }
 
 export default function ChatComponent() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const messagesEndRef = useRef<null | HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   useEffect(() => {
     const getWelcomeMessage = async () => {
       try {
         const welcomeMessage = `Welcome to Grade Assistant! 👋`;
-
         setMessages([{ type: 'assistant', content: welcomeMessage }]);
       } catch (error) {
         console.error('Error getting welcome message:', error);
@@ -27,27 +37,32 @@ export default function ChatComponent() {
   }, []);
 
   const handleSend = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || isLoading) return;
     
     const userMessage = input;
     setInput('');
+    setIsLoading(true);
     
     // Add user message immediately
     setMessages(prev => [...prev, { type: 'user', content: userMessage }]);
+    // Add loading indicator
+    setMessages(prev => [...prev, { type: 'assistant', content: '', loading: true }]);
 
     try {
       const response = await askLlama(userMessage);
-      // Add AI response
-      setMessages(prev => [...prev, { 
-        type: 'assistant', 
-        content: response.answer || response 
-      }]);
+      // Replace loading indicator with actual response
+      setMessages(prev => [
+        ...prev.slice(0, -1), // Remove loading indicator
+        { type: 'assistant', content: response.answer || response }
+      ]);
     } catch (error) {
       console.error('Error:', error);
-      setMessages(prev => [...prev, { 
-        type: 'assistant', 
-        content: 'Error getting response from AI'
-      }]);
+      setMessages(prev => [
+        ...prev.slice(0, -1), // Remove loading indicator
+        { type: 'assistant', content: 'Error getting response from AI' }
+      ]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -68,13 +83,11 @@ export default function ChatComponent() {
       position: 'fixed',
       top: 0,
       left: 0,
-      right: 0,
-      bottom: 0
+      right: 0
     }}>
       <Box sx={{ 
         flex: 1,
-        overflow: 'auto',
-        width: '100%',
+        overflowY: 'auto',
         paddingBottom: '100px'
       }}>
         {messages.map((msg, index) => (
@@ -97,24 +110,31 @@ export default function ChatComponent() {
               alignItems: 'flex-start',
               gap: 3
             }}>
-
-              {/* ข้อความ */}
-              <Typography
-                sx={{
-                  color: '#ECECF1',
-                  whiteSpace: 'pre-line',
-                  fontFamily: 'inherit',
-                  flex: 1
-                }}
-              >
-                {msg.content}
-              </Typography>
+              {msg.loading ? (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <CircularProgress size={20} sx={{ color: '#ECECF1' }} />
+                  <Typography sx={{ color: '#ECECF1' }}>
+                    AI is thinking...
+                  </Typography>
+                </Box>
+              ) : (
+                <Typography
+                  sx={{
+                    color: '#ECECF1',
+                    whiteSpace: 'pre-line',
+                    fontFamily: 'inherit',
+                    flex: 1
+                  }}
+                >
+                  {msg.content}
+                </Typography>
+              )}
             </Box>
           </Box>
         ))}
+        <div ref={messagesEndRef} />
       </Box>
 
-      {/* Input section */}
       <Box sx={{ 
         position: 'fixed',
         bottom: 0,
@@ -154,20 +174,26 @@ export default function ChatComponent() {
                 }
               }
             }}
+            disabled={isLoading}
           />
           <IconButton
             onClick={handleSend}
+            disabled={isLoading || !input.trim()}
             sx={{
               position: 'absolute',
               right: 8,
               bottom: 8,
-              color: 'rgba(255,255,255,0.5)',
+              color: isLoading ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.5)',
               '&:hover': {
-                color: 'rgba(255,255,255,0.8)'
+                color: isLoading ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.8)'
               }
             }}
           >
-            <SendIcon />
+            {isLoading ? (
+              <CircularProgress size={24} sx={{ color: 'rgba(255,255,255,0.5)' }} />
+            ) : (
+              <SendIcon />
+            )}
           </IconButton>
         </Box>
       </Box>
