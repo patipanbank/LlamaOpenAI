@@ -18,22 +18,21 @@ export const chatWithAI = async (req: Request, res: Response) => {
     // ค้นหารหัสนักศึกษาและเทอม/ปี
     const studentId = parts.find(part => studentIdPattern.test(part));
     const termYear = parts.find(part => termYearPattern.test(part));
-    
+
+    // ถ้าไม่มี studentId ให้ส่งคำถามไปที่ Ollama โดยตรง
     if (!studentId) {
-      return res.status(400).json({ error: 'Invalid student ID' });
+      const aiResponse = await ollamaService.generateResponse(question, []);
+      return res.json({ answer: aiResponse });
     }
 
-    // สร้าง query filter
+    // สร้าง query filter สำหรับค้นหาเกรด
     let queryFilter: any = { studentId: studentId };
 
-    // ถ้ามีข้อมูลเทอม/ปี ให้เพิ่มในการค้นหา
     if (termYear) {
       const [_, semester, year] = termYear.match(termYearPattern) || [];
       queryFilter.semester = semester;
       queryFilter.academicYear = year;
     }
-
-    console.log('Query filter:', queryFilter);
 
     // ค้นหาเกรดที่ตรงกับเงื่อนไข
     const grades = await Grade.find(queryFilter);
@@ -42,10 +41,7 @@ export const chatWithAI = async (req: Request, res: Response) => {
       return res.json({ answer: "No grades found for this student ID." });
     }
 
-    console.log('Found grades:', grades);
-
     const aiResponse = await ollamaService.generateResponse(question, grades);
-    
     return res.json({ answer: aiResponse });
 
   } catch (error) {

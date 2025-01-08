@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { askLlama } from '../services/api';
-import { Box, Container, TextField, Button, Paper, Typography, IconButton } from '@mui/material';
+import { Box, TextField, Typography, IconButton } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 
 interface ChatMessage {
